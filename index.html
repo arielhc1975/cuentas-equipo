@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <title>Cuentas del Equipo</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    body { margin: 0; background:#0b1220; color:#e5e7eb; }
+    header { padding: 14px 16px; background:#111827; position: sticky; top:0; border-bottom:1px solid #1f2937; }
+    h1 { margin:0; font-size: 18px; }
+    main { padding: 16px; max-width: 900px; margin: 0 auto; }
+    .tabs { display:flex; gap:8px; margin: 12px 0 16px; flex-wrap: wrap; }
+    .tab { padding:10px 12px; border:1px solid #1f2937; border-radius: 12px; cursor:pointer; background:#0f172a; }
+    .tab.active { background:#111827; border-color:#334155; }
+    .card { background:#0f172a; border:1px solid #1f2937; border-radius: 16px; padding: 14px; margin: 12px 0; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; }
+    input, button, select { border-radius: 12px; border:1px solid #334155; padding: 10px 12px; background:#0b1220; color:#e5e7eb; }
+    input[type="number"] { width: 140px; }
+    button { cursor:pointer; }
+    button.primary { background:#2563eb; border-color:#2563eb; }
+    button.danger { background:#991b1b; border-color:#991b1b; }
+    button.ghost { background: transparent; }
+    .muted { color:#9ca3af; font-size: 12px; }
+    .list { display:flex; flex-direction: column; gap: 8px; }
+    .item { display:flex; justify-content: space-between; gap: 10px; align-items:center; padding: 10px; border-radius: 12px; border:1px solid #1f2937; background:#0b1220; }
+    .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border:1px solid #334155; color:#cbd5e1; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width:700px){ .grid2{ grid-template-columns: 1fr; } }
+    .divider { height:1px; background:#1f2937; margin: 10px 0; }
+    .click { cursor:pointer; }
+    .right { margin-left:auto; }
+    .warn { color:#fbbf24; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚽ Cuentas del Equipo</h1>
+    <div class="muted" id="storageNote"></div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <div class="tab active" data-tab="gastos">Gastos</div>
+      <div class="tab" data-tab="jugadores">Jugadores</div>
+      <div class="tab" data-tab="resumen">Resumen</div>
+      <div class="tab" data-tab="backup">Backup</div>
+    </div>
+
+    <!-- GASTOS -->
+    <section id="tab-gastos">
+      <div class="card">
+        <div class="row">
+          <input id="g-titulo" placeholder="Título (ej: Asado 14/12)" style="flex:1; min-width:220px;">
+          <input id="g-monto" type="number" step="0.01" min="0" placeholder="Monto total">
+          <input id="g-fecha" type="date">
+          <button class="primary" id="btn-crear-gasto">Crear gasto</button>
+        </div>
+        <div class="muted" style="margin-top:8px;">
+          * El gasto se divide en partes iguales entre los participantes que tildes.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div style="font-weight:600;">Gastos</div>
+          <span class="pill" id="pill-gastos">0</span>
+          <span class="right muted" id="hintGasto">Tocá un gasto para ver participantes y marcar pagos.</span>
+        </div>
+        <div class="divider"></div>
+        <div class="list" id="lista-gastos"></div>
+      </div>
+
+      <div class="card" id="detalle-gasto" style="display:none;">
+        <div class="row">
+          <div style="font-weight:700;" id="dg-title"></div>
+          <span class="pill" id="dg-fecha"></span>
+          <span class="pill" id="dg-monto"></span>
+          <button class="danger right" id="btn-borrar-gasto">Borrar gasto</button>
+          <button class="primary" id="btn-whatsapp">Recordar por WhatsApp</button>
+        </div>
+        <div class="muted" id="dg-sub"></div>
+
+        <div class="divider"></div>
+
+        <div style="font-weight:600; margin-bottom:8px;">Participantes</div>
+        <div class="list" id="dg-participantes"></div>
+
+        <div class="divider"></div>
+
+        <div style="font-weight:600;">Agregar/quitar participantes</div>
+        <div class="muted">Tildá quién participó. Se recalcula la parte automáticamente.</div>
+        <div class="divider"></div>
+        <div class="list" id="dg-selector"></div>
+      </div>
+    </section>
+
+    <!-- JUGADORES -->
+    <section id="tab-jugadores" style="display:none;">
+      <div class="card">
+        <div class="row">
+          <input id="j-nombre" placeholder="Nombre del jugador" style="flex:1; min-width:220px;">
+          <button class="primary" id="btn-agregar-jugador">Agregar</button>
+        </div>
+        <div class="muted" style="margin-top:8px;">Tip: podés borrar jugadores si ya no están en el equipo.</div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div style="font-weight:600;">Jugadores</div>
+          <span class="pill" id="pill-jugadores">0</span>
+        </div>
+        <div class="divider"></div>
+        <div class="list" id="lista-jugadores"></div>
+      </div>
+    </section>
+
+    <!-- RESUMEN -->
+    <section id="tab-resumen" style="display:none;">
+      <div class="card">
+        <div class="row">
+          <div style="font-weight:700;">Resumen de deudas (pendientes)</div>
+          <span class="right pill" id="pill-total">$0</span>
+        </div>
+        <div class="muted">Suma de saldos impagos en todos los gastos.</div>
+        <div class="divider"></div>
+        <div class="list" id="lista-resumen"></div>
+      </div>
+    </section>
+
+    <!-- BACKUP -->
+    <section id="tab-backup" style="display:none;">
+      <div class="card">
+        <div style="font-weight:700;">Backup</div>
+        <div class="muted">Para no perder datos si cambiás de teléfono.</div>
+        <div class="divider"></div>
+
+        <div class="row">
+          <button class="primary" id="btn-exportar">Exportar (.json)</button>
+          <label class="tab" style="display:inline-block;">
+            Importar (.json)
+            <input id="file-import" type="file" accept="application/json" style="display:none;">
+          </label>
+          <button class="danger right" id="btn-borrar-todo">Borrar todo</button>
+        </div>
+
+        <div class="divider"></div>
+        <div class="muted" id="backup-status"></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+/** ======= Estado / storage ======= */
+const LS_KEY = "equipo_cuentas_v1";
+const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+function loadState(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(!raw){
+    return { jugadores: [], gastos: [] };
+  }
+  try { return JSON.parse(raw); } catch { return { jugadores: [], gastos: [] }; }
+}
+function saveState(){
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  renderAll();
+}
+let state = loadState();
+let selectedGastoId = null;
+
+/** ======= Util ======= */
+const money = (n)=> {
+  const x = Number(n||0);
+  return x.toLocaleString("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:2});
+};
+const byId = (id)=> document.getElementById(id);
+
+function todayISO(){
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - off*60000);
+  return local.toISOString().slice(0,10);
+}
+
+/** ======= Tabs ======= */
+document.querySelectorAll(".tab[data-tab]").forEach(t=>{
+  t.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab[data-tab]").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    const name = t.dataset.tab;
+    ["gastos","jugadores","resumen","backup"].forEach(k=>{
+      byId("tab-"+k).style.display = (k===name) ? "" : "none";
+    });
+    if(name==="resumen") renderResumen();
+  });
+});
+
+/** ======= Jugadores ======= */
+byId("btn-agregar-jugador").addEventListener("click", ()=>{
+  const nombre = byId("j-nombre").value.trim();
+  if(!nombre) return;
+  state.jugadores.push({ id: uid(), nombre });
+  byId("j-nombre").value = "";
+  saveState();
+});
+
+function borrarJugador(jid){
+  // Si está en algún gasto, no borramos silenciosamente: lo dejamos, pero lo ocultamos en selector?
+  // Para MVP: permitimos borrar, y también lo removemos de gastos.
+  state.gastos.forEach(g=>{
+    g.participantes = g.participantes.filter(p=>p.jugadorId !== jid);
+  });
+  state.jugadores = state.jugadores.filter(j=>j.id !== jid);
+  if(selectedGastoId) recalcGasto(selectedGastoId);
+  saveState();
+}
+
+function renderJugadores(){
+  byId("pill-jugadores").textContent = state.jugadores.length;
+  const cont = byId("lista-jugadores");
+  cont.innerHTML = "";
+  state.jugadores.forEach(j=>{
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div>${escapeHtml(j.nombre)}</div>
+      <button class="danger" title="Borrar">Borrar</button>
+    `;
+    div.querySelector("button").addEventListener("click", ()=> borrarJugador(j.id));
+    cont.appendChild(div);
+  });
+}
+
+/** ======= Gastos ======= */
+byId("g-fecha").value = todayISO();
+
+byId("btn-crear-gasto").addEventListener("click", ()=>{
+  const titulo = byId("g-titulo").value.trim() || "Gasto";
+  const monto = Number(byId("g-monto").value);
+  const fecha = byId("g-fecha").value || todayISO();
+  if(!monto || monto<=0) return;
+
+  const gasto = {
+    id: uid(),
+    titulo,
+    monto,
+    fecha,
+    participantes: [] // {jugadorId, debe, pago}
+  };
+  state.gastos.unshift(gasto);
+  byId("g-titulo").value = "";
+  byId("g-monto").value = "";
+  selectedGastoId = gasto.id;
+  saveState();
+  openGasto(gasto.id);
+});
+
+function borrarGasto(gid){
+  state.gastos = state.gastos.filter(g=>g.id !== gid);
+  selectedGastoId = null;
+  byId("detalle-gasto").style.display = "none";
+  saveState();
+}
+
+function getGasto(gid){ return state.gastos.find(g=>g.id===gid); }
+
+function recalcGasto(gid){
+  const g = getGasto(gid);
+  if(!g) return;
+  const n = g.participantes.length;
+  const parte = n>0 ? (Number(g.monto)/n) : 0;
+  g.participantes.forEach(p=>{
+    // no tocamos p.pago, solo recalculamos debe y saldo
+    p.debe = parte;
+  });
+}
+
+function toggleParticipante(gid, jugadorId, on){
+  const g = getGasto(gid);
+  if(!g) return;
+  const exists = g.participantes.find(p=>p.jugadorId===jugadorId);
+  if(on && !exists){
+    g.participantes.push({ jugadorId, debe: 0, pago: 0 });
+  } else if(!on && exists){
+    g.participantes = g.participantes.filter(p=>p.jugadorId!==jugadorId);
+  }
+  recalcGasto(gid);
+  saveState();
+  openGasto(gid);
+}
+
+function registrarPago(gid, jugadorId, montoPago){
+  const g = getGasto(gid);
+  if(!g) return;
+  const p = g.participantes.find(x=>x.jugadorId===jugadorId);
+  if(!p) return;
+  p.pago = Math.min(Number(p.debe), Number(p.pago) + Number(montoPago));
+  saveState();
+  openGasto(gid);
+}
+
+function marcarPagoTotal(gid, jugadorId){
+  const g = getGasto(gid);
+  if(!g) return;
+  const p = g.participantes.find(x=>x.jugadorId===jugadorId);
+  if(!p) return;
+  p.pago = Number(p.debe);
+  saveState();
+  openGasto(gid);
+}
+
+function saldoParticipante(p){
+  return Math.max(0, Number(p.debe) - Number(p.pago));
+}
+
+function openGasto(gid){
+  selectedGastoId = gid;
+  const g = getGasto(gid);
+  if(!g) return;
+  recalcGasto(gid);
+
+  byId("detalle-gasto").style.display = "";
+  byId("dg-title").textContent = g.titulo;
+  byId("dg-fecha").textContent = g.fecha;
+  byId("dg-monto").textContent = money(g.monto);
+
+  const n = g.participantes.length;
+  const parte = n>0 ? g.monto/n : 0;
+  const pendientes = g.participantes.filter(p=>saldoParticipante(p)>0).length;
+  byId("dg-sub").innerHTML =
+    `Participan <b>${n}</b> — Parte: <b>${money(parte)}</b> — Pendientes: <b class="${pendientes? "warn":""}">${pendientes}</b>`;
+
+  // botones
+  byId("btn-borrar-gasto").onclick = ()=> borrarGasto(g.id);
+
+  // lista participantes (los que están incluidos)
+  const list = byId("dg-participantes");
+  list.innerHTML = "";
+  g.participantes
+    .map(p=>({...p, nombre: (state.jugadores.find(j=>j.id===p.jugadorId)?.nombre || "Jugador")} ))
+    .sort((a,b)=> a.nombre.localeCompare(b.nombre))
+    .forEach(p=>{
+      const saldo = saldoParticipante(p);
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `
+        <div>
+          <div style="font-weight:600;">${escapeHtml(p.nombre)}</div>
+          <div class="muted">Debe: ${money(p.debe)} · Pagó: ${money(p.pago)} · Saldo: <b class="${saldo? "warn":""}">${money(saldo)}</b></div>
+        </div>
+        <div class="row" style="gap:6px;">
+          <button class="ghost" title="Pago parcial">+ Pago</button>
+          <button class="primary" title="Marcar pagó todo">Pagó</button>
+        </div>
+      `;
+      div.querySelectorAll("button")[0].addEventListener("click", ()=>{
+        const m = prompt("¿Cuánto pagó? (número)", String(saldo));
+        if(m===null) return;
+        const val = Number(String(m).replace(",", "."));
+        if(!val || val<=0) return;
+        registrarPago(g.id, p.jugadorId, val);
+      });
+      div.querySelectorAll("button")[1].addEventListener("click", ()=> marcarPagoTotal(g.id, p.jugadorId));
+      list.appendChild(div);
+    });
+
+  // selector de jugadores (tildar participantes)
+  const sel = byId("dg-selector");
+  sel.innerHTML = "";
+  if(state.jugadores.length===0){
+    sel.innerHTML = `<div class="muted">Primero agregá jugadores en la pestaña “Jugadores”.</div>`;
+  } else {
+    state.jugadores
+      .slice()
+      .sort((a,b)=>a.nombre.localeCompare(b.nombre))
+      .forEach(j=>{
+        const checked = !!g.participantes.find(p=>p.jugadorId===j.id);
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <label class="row" style="gap:10px; width:100%;">
+            <input type="checkbox" ${checked?"checked":""} />
+            <span>${escapeHtml(j.nombre)}</span>
+          </label>
+        `;
+        div.querySelector("input").addEventListener("change", (e)=>{
+          toggleParticipante(g.id, j.id, e.target.checked);
+        });
+        sel.appendChild(div);
+      });
+  }
+
+  renderGastos();
+  renderResumen(); // actualiza totales
+}
+
+function renderGastos(){
+  byId("pill-gastos").textContent = state.gastos.length;
+  const cont = byId("lista-gastos");
+  cont.innerHTML = "";
+  state.gastos.forEach(g=>{
+    const n = g.participantes.length;
+    const pendientes = g.participantes.filter(p=>saldoParticipante(p)>0).length;
+    const div = document.createElement("div");
+    div.className = "item click";
+    div.innerHTML = `
+      <div>
+        <div style="font-weight:600;">${escapeHtml(g.titulo)}</div>
+        <div class="muted">${g.fecha} · Monto: ${money(g.monto)} · Participan: ${n} · Pendientes: <b class="${pendientes? "warn":""}">${pendientes}</b></div>
+      </div>
+      <span class="pill">Abrir</span>
+    `;
+    div.addEventListener("click", ()=> openGasto(g.id));
+    cont.appendChild(div);
+  });
+}
+
+/** ======= Resumen ======= */
+function renderResumen(){
+  const map = new Map(); // jugadorId -> saldo total
+  state.gastos.forEach(g=>{
+    g.participantes.forEach(p=>{
+      const s = saldoParticipante(p);
+      if(s>0) map.set(p.jugadorId, (map.get(p.jugadorId)||0) + s);
+    });
+  });
+
+  const rows = [];
+  for(const [jid, total] of map.entries()){
+    const nombre = state.jugadores.find(j=>j.id===jid)?.nombre || "Jugador";
+    rows.push({ nombre, total });
+  }
+  rows.sort((a,b)=> b.total - a.total);
+
+  const totalAll = rows.reduce((acc,r)=> acc+r.total, 0);
+  byId("pill-total").textContent = money(totalAll);
+
+  const cont = byId("lista-resumen");
+  cont.innerHTML = "";
+  if(rows.length===0){
+    cont.innerHTML = `<div class="muted">No hay deudas pendientes 🎉</div>`;
+    return;
+  }
+  rows.forEach(r=>{
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div style="font-weight:600;">${escapeHtml(r.nombre)}</div>
+      <div><b class="warn">${money(r.total)}</b></div>
+    `;
+    cont.appendChild(div);
+  });
+}
+
+/** ======= Backup ======= */
+byId("btn-exportar").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "cuentas_equipo_backup.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  byId("backup-status").textContent = "Backup exportado ✅";
+});
+
+byId("file-import").addEventListener("change", async (e)=>{
+  const file = e.target.files?.[0];
+  if(!file) return;
+  const text = await file.text();
+  try {
+    const data = JSON.parse(text);
+    if(!data || !Array.isArray(data.jugadores) || !Array.isArray(data.gastos)) throw new Error("Formato inválido");
+    state = data;
+    selectedGastoId = null;
+    saveState();
+    byId("backup-status").textContent = "Backup importado ✅";
+  } catch {
+    byId("backup-status").textContent = "No pude importar: archivo inválido ❌";
+  } finally {
+    e.target.value = "";
+  }
+});
+
+byId("btn-borrar-todo").addEventListener("click", ()=>{
+  if(!confirm("¿Seguro? Se borra todo.")) return;
+  state = { jugadores: [], gastos: [] };
+  selectedGastoId = null;
+  localStorage.removeItem(LS_KEY);
+  renderAll();
+  byId("backup-status").textContent = "Todo borrado.";
+});
+
+/** ======= helpers ======= */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+/** ======= PWA: service worker ======= */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", async ()=>{
+    try { await navigator.serviceWorker.register("./sw.js"); }
+    catch(e){ /* ignore */ }
+  });
+}
+
+function renderAll(){
+  byId("storageNote").textContent = "Se guarda en este teléfono (offline). Recomendado: Backup en la pestaña Backup.";
+  renderJugadores();
+  renderGastos();
+  renderResumen();
+}
+renderAll();
+byId("btn-whatsapp").addEventListener("click", ()=>{
+  if(!selectedGastoId) return;
+  const g = getGasto(selectedGastoId);
+  if(!g) return;
+
+  const pendientes = g.participantes
+    .map(p=>{
+      const saldo = saldoParticipante(p);
+      if(saldo <= 0) return null;
+      const nombre = state.jugadores.find(j=>j.id===p.jugadorId)?.nombre || "Jugador";
+      return `- ${nombre}: ${money(saldo)}`;
+    })
+    .filter(Boolean);
+
+  if(pendientes.length === 0){
+    alert("No hay deudas pendientes 🎉");
+    return;
+  }
+
+  const texto =
+`⚽ Recordatorio – ${g.titulo}
+
+Pendientes:
+${pendientes.join("\n")}
+
+Gracias 🙌`;
+
+  const url = "https://wa.me/?text=" + encodeURIComponent(texto);
+  window.open(url, "_blank");
+});
+</script>
+</body>
+</html>
